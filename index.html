@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#14365a">
+    <title>Meu Estoque</title>
+    <link rel="stylesheet" href="./styles.css">
+    <script src="./config.js"></script>
+    <script type="module" src="./app.js"></script>
+  </head>
+  <body>
+    <main id="setup-screen" class="center-screen" hidden>
+      <div class="card narrow">
+        <h1>Falta conectar o banco de dados</h1>
+        <p>Abra o arquivo <strong>config.js</strong> e preencha o endereço e a chave do Supabase. Depois execute o arquivo <strong>supabase-schema.sql</strong> no Supabase.</p>
+      </div>
+    </main>
+
+    <main id="auth-screen" class="center-screen" hidden>
+      <div class="card narrow">
+        <div class="logo" aria-hidden="true">📦</div>
+        <h1>Meu Estoque</h1>
+        <p class="lead" id="auth-description">Entre para ver suas peças.</p>
+        <form id="auth-form" novalidate>
+          <label class="field">E-mail
+            <input name="email" type="email" autocomplete="email" inputmode="email" required>
+          </label>
+          <label class="field">Senha
+            <input name="password" type="password" autocomplete="current-password" minlength="6" required>
+            <span class="hint">Mínimo de 6 letras ou números</span>
+          </label>
+          <p class="message" id="auth-message" role="status" aria-live="polite"></p>
+          <button class="btn btn-primary btn-block" id="auth-submit" type="submit">Entrar</button>
+        </form>
+        <p class="auth-switch" id="auth-switch">Primeira vez aqui? <button class="link-button" id="toggle-auth" type="button">Criar conta</button></p>
+      </div>
+    </main>
+
+    <div id="app-shell" hidden>
+      <header class="topbar">
+        <div class="topbar-inner">
+          <h1 class="app-title"><span aria-hidden="true">📦</span> Meu Estoque</h1>
+          <button class="btn btn-ghost" id="logout-button" type="button">Sair</button>
+        </div>
+      </header>
+
+      <main class="page">
+        <section class="summary" aria-label="Resumo">
+          <p><strong id="total-items">0</strong> <span id="total-items-label">itens cadastrados</span></p>
+          <button class="low-stock-alert" id="low-stock-filter" type="button" aria-pressed="false" hidden></button>
+        </section>
+
+        <button class="btn btn-primary btn-big btn-block" id="add-item-button" type="button">+ Adicionar item</button>
+
+        <section class="search-area" aria-label="Procurar">
+          <label class="field">Procurar
+            <input id="search-input" type="search" placeholder="Nome, marca, modelo ou local" autocomplete="off">
+          </label>
+          <div class="chips" id="category-chips" role="group" aria-label="Filtrar por tipo">
+            <button class="chip active" type="button" data-category="" aria-pressed="true">Todos</button>
+            <button class="chip" type="button" data-category="Placa" aria-pressed="false">Placas</button>
+            <button class="chip" type="button" data-category="Componente" aria-pressed="false">Componentes</button>
+            <button class="chip" type="button" data-category="Peça" aria-pressed="false">Peças</button>
+            <button class="chip" type="button" data-category="Ferramenta" aria-pressed="false">Ferramentas</button>
+            <button class="chip" type="button" data-category="Outro" aria-pressed="false">Outros</button>
+          </div>
+        </section>
+
+        <p class="result-count" id="result-count" role="status" aria-live="polite"></p>
+        <ul class="item-list" id="inventory-list"></ul>
+
+        <div class="card empty-state" id="empty-state" hidden>
+          <h2 id="empty-title">Nenhum item ainda</h2>
+          <p id="empty-description">Toque em “Adicionar item” para cadastrar a primeira peça.</p>
+        </div>
+
+        <button class="btn btn-secondary btn-block" id="export-button" type="button" disabled>Baixar lista (planilha)</button>
+      </main>
+    </div>
+
+    <dialog class="item-dialog" id="item-dialog" aria-labelledby="dialog-title">
+      <form id="item-form">
+        <div class="dialog-header">
+          <h2 id="dialog-title">Adicionar item</h2>
+          <button class="btn btn-ghost" id="close-dialog" type="button">Fechar</button>
+        </div>
+        <input id="item-id" type="hidden">
+
+        <label class="field">Nome do item *
+          <input name="name" required maxlength="120" placeholder="Ex.: Placa fonte">
+        </label>
+        <label class="field">Tipo
+          <select name="category">
+            <option>Placa</option>
+            <option>Componente</option>
+            <option>Peça</option>
+            <option>Ferramenta</option>
+            <option>Outro</option>
+          </select>
+        </label>
+        <label class="field">Marca
+          <input name="brand" maxlength="80" placeholder="Ex.: Samsung">
+        </label>
+        <label class="field">Modelo
+          <input name="model" maxlength="100" placeholder="Ex.: UN50AU7700">
+        </label>
+
+        <fieldset class="location-box">
+          <legend>Onde está guardado?</legend>
+          <label class="field">Caixa
+            <input name="box" maxlength="60" placeholder="Ex.: Caixa 3">
+          </label>
+          <label class="field">Prateleira
+            <input name="shelf" maxlength="60" placeholder="Ex.: Prateleira B">
+          </label>
+        </fieldset>
+
+        <label class="field">Quantidade que tenho
+          <input name="quantity" type="number" inputmode="numeric" min="0" step="1" value="1" required>
+        </label>
+        <label class="field">Avisar quando restar
+          <input name="minimum_quantity" type="number" inputmode="numeric" min="0" step="1" value="1" required>
+          <span class="hint">Quando chegar nesta quantidade, o item aparece como “Pouco estoque”.</span>
+        </label>
+        <label class="field">Código (opcional)
+          <input name="sku" maxlength="60" placeholder="Ex.: PL-042">
+        </label>
+        <label class="field">Observações (opcional)
+          <textarea name="notes" rows="3" maxlength="500" placeholder="Qualquer detalhe útil"></textarea>
+        </label>
+
+        <p class="message error" id="form-error" role="status" aria-live="polite"></p>
+        <div class="dialog-actions">
+          <button class="btn btn-primary btn-big" id="save-item-button" type="submit">Salvar</button>
+          <button class="btn btn-secondary btn-big" id="cancel-dialog" type="button">Cancelar</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="confirm-dialog" id="confirm-dialog" aria-labelledby="confirm-title">
+      <form method="dialog">
+        <h2 id="confirm-title">Excluir item?</h2>
+        <p id="confirm-text"></p>
+        <div class="dialog-actions">
+          <button class="btn btn-danger btn-big" value="yes">Sim, excluir</button>
+          <button class="btn btn-secondary btn-big" value="no">Não, voltar</button>
+        </div>
+      </form>
+    </dialog>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </body>
+</html>
